@@ -200,7 +200,10 @@ function displayData() {
 
   function setValue(id, value) {
     let element = document.getElementById(id);
-    if (element) element.innerHTML = value;
+    if (element) {
+      // Format the value before displaying it
+      element.innerHTML = formatNumber(value);
+    }
   }
 
   const fieldMapping = {
@@ -286,4 +289,13 @@ function displayData() {
 
 if (window.location.pathname.includes("final.html")) {
   window.onload = displayData;
+}
+// --- NEW: Function to format numbers in the Indian system ---
+function formatNumber(num) {
+  // Return non-numeric values (like '-', 'N/A', etc.) as they are
+  if (isNaN(num)) {
+    return num;
+  }
+  // Use toLocaleString to format with commas for India (en-IN)
+  return Number(num).toLocaleString("en-IN");
 }
