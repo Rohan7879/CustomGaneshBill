@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estimate Input Form</title>
+    <script src="bill.js"></script>
+    <link rel="stylesheet" href="html.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img src="IMG-20250716-WA0121.jpg" alt="Company Logo" class="logo" />
+        <h1>Bill Details</h1>
+      </div>
+
+      <form id="estimateForm" onsubmit="collectData(); return false;">
+        <div class="master-toggle-container">
+          <strong>બિલનો પ્રકાર:</strong>
+          <label class="switch">
+            <input type="checkbox" id="loose_supply_toggle" name="is_loose_supply" />
+            <span class="slider"></span>
+          </label>
+          <strong>લૂઝ સપ્લાય બિલ (Loose Supply)</strong>
+        </div>
+
+        <table>
+          <tbody>
+            <tr>
+              <td><strong>વેબ્રીજ વજન</strong></td>
+              <td colspan="4">
+                <input type="number" name="weighbridge_weight" required />
+              </td>
+            </tr>
+          </tbody>
+
+          <tbody id="loose_supply_section" style="display: none">
+            <tr>
+              <td><strong>ભાવ (Price)</strong></td>
+              <td colspan="4">
+                <input type="number" name="loose_price" id="loose_price_input" />
+              </td>
+            </tr>
+          </tbody>
+
+          <tbody id="bag_supply_section">
+            <tr>
+              <td rowspan="2"><strong>બારદાન</strong></td>
+              <td style="font-weight: bold; color: #005a9e">કંતાન (૬૦૦ ગ્રામ)</td>
+              <td>ભરેલા: <input type="number" name="bharela_600" style="width: 80px" /></td>
+              <td>ખાલી: <input type="number" name="khali_600" style="width: 80px" /></td>
+              <td class="toggle-cell-container">
+                <label class="switch">
+                  <input type="checkbox" name="deduct_kantan" checked />
+                  <span class="slider"></span>
+                </label>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; color: #005a9e">પ્લાસ્ટિક (૨૦૦ ગ્રામ)</td>
+              <td>ભરેલા: <input type="number" name="bharela_200" style="width: 80px" /></td>
+              <td>ખાલી: <input type="number" name="khali_200" style="width: 80px" /></td>
+              <td class="toggle-cell-container">
+                <label class="switch">
+                  <input type="checkbox" name="deduct_plastic" checked />
+                  <span class="slider"></span>
+                </label>
+              </td>
+            </tr>
+          </tbody>
+
+          <tbody>
+            <tr>
+              <td style="border-bottom: 2px solid #dee2e6"></td>
+              <td colspan="4" class="checkbox-cell" style="border-bottom: 2px solid #dee2e6">
+                <div class="toggle-container">
+                  <strong>ઉતરાઈ કપાત કરવી (Deduct Unloading)</strong>
+                  <label class="switch">
+                    <input type="checkbox" name="deduct_utrai" checked />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+
+          <tbody id="vakal_section">
+            <tr>
+              <td><strong>વકલ ૧</strong></td>
+              <td>કટ્ટા</td>
+              <td><input type="number" name="vakal_1_katta" /></td>
+              <td>ભાવ</td>
+              <td><input type="number" name="vakal_1_bhav" /></td>
+            </tr>
+            <tr>
+              <td><strong>વકલ ૨</strong></td>
+              <td>કટ્ટા</td>
+              <td><input type="number" name="vakal_2_katta" /></td>
+              <td>ભાવ</td>
+              <td><input type="number" name="vakal_2_bhav" /></td>
+            </tr>
+            <tr>
+              <td><strong>વકલ ૩</strong></td>
+              <td>કટ્ટા</td>
+              <td><input type="number" name="vakal_3_katta" /></td>
+              <td>ભાવ</td>
+              <td><input type="number" name="vakal_3_bhav" /></td>
+            </tr>
+            <tr>
+              <td><strong>વકલ ૪</strong></td>
+              <td>કટ્ટા</td>
+              <td><input type="number" name="vakal_4_katta" /></td>
+              <td>ભાવ</td>
+              <td><input type="number" name="vakal_4_bhav" /></td>
+            </tr>
+            <tr>
+              <td><strong>વકલ ૫</strong></td>
+              <td>કટ્ટા</td>
+              <td><input type="number" name="vakal_5_katta" /></td>
+              <td>ભાવ</td>
+              <td><input type="number" name="vakal_5_bhav" /></td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="submit">Generate Bill</button>
+      </form>
+    </div>
+
+    <script>
+      document.getElementById("loose_supply_toggle").addEventListener("change", function (event) {
+        const isLoose = event.target.checked;
+        const looseSection = document.getElementById("loose_supply_section");
+        const bagSection = document.getElementById("bag_supply_section");
+        const vakalSection = document.getElementById("vakal_section");
+        const loosePriceInput = document.getElementById("loose_price_input");
+        looseSection.style.display = isLoose ? "table-row-group" : "none";
+        bagSection.style.display = isLoose ? "none" : "table-row-group";
+        vakalSection.style.display = isLoose ? "none" : "table-row-group";
+        loosePriceInput.required = isLoose;
+      });
+    </script>
+  </body>
+</html>
