@@ -1,4 +1,20 @@
+let expenseCount = 0;
+
+function addExpense() {
+  expenseCount++;
+  const expenseList = document.getElementById("expense_list");
+  const newRow = document.createElement("div");
+  newRow.classList.add("expense-row");
+  newRow.innerHTML = `
+        <input type="text" name="expense_name_${expenseCount}" placeholder="ખર્ચનું નામ (Expense Name)">
+        <input type="number" name="expense_amount_${expenseCount}" placeholder="રકમ (Amount)">
+        <button type="button" class="remove-expense-btn" onclick="this.parentElement.remove()">Remove</button>
+    `;
+  expenseList.appendChild(newRow);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
+  addExpense(); // Start with one empty expense row
   const toggle = document.getElementById("loose_supply_toggle");
   if (toggle) {
     toggle.addEventListener("change", function (event) {
@@ -26,18 +42,19 @@ function collectData() {
   const formData = new FormData(form);
 
   let data = {};
-  // Read all form data into the data object
-  formData.forEach((value, key) => {
-    // Checkboxes will be null if not checked, handle them separately
-    if (key !== "is_loose_supply" && key !== "deduct_kantan" && key !== "deduct_plastic" && key !== "deduct_utrai") {
-      data[key] = Number(value) || 0;
-    }
-  });
-
   const isLooseSupply = formData.get("is_loose_supply") !== null;
   const deductKantan = formData.get("deduct_kantan") !== null;
   const deductPlastic = formData.get("deduct_plastic") !== null;
   const deductUtrai = formData.get("deduct_utrai") !== null;
+
+  data.expenses = [];
+  for (let i = 1; i <= expenseCount; i++) {
+    const name = formData.get(`expense_name_${i}`);
+    const amount = Number(formData.get(`expense_amount_${i}`)) || 0;
+    if (name && amount > 0) {
+      data.expenses.push({ name, amount });
+    }
+  }
 
   let net_vajan = 0,
     total = 0,
@@ -45,8 +62,8 @@ function collectData() {
 
   if (isLooseSupply) {
     data.bill_type = "Loose";
-    const weight = data.weighbridge_weight;
-    const price = data.loose_price;
+    const weight = Number(formData.get("weighbridge_weight")) || 0;
+    const price = Number(formData.get("loose_price")) || 0;
     const katta_kasar = customRound(weight * 0.003);
     net_vajan = customRound(weight - katta_kasar);
     total = customRound((net_vajan / 20) * price);
@@ -65,15 +82,35 @@ function collectData() {
     });
   } else {
     data.bill_type = "Bag";
-    const weight = data.weighbridge_weight;
-    let bharela = data.bharela_600 + data.bharela_200;
-    let khali = data.khali_600 + data.khali_200;
-    let totalBardan = bharela + khali;
+    formData.forEach((value, key) => {
+      if (
+        !key.startsWith("expense_") &&
+        !["is_loose_supply", "deduct_kantan", "deduct_plastic", "deduct_utrai"].includes(key)
+      ) {
+        data[key] = Number(value) || 0;
+      }
+    });
 
+    let {
+      vakal_1_bhav: b1,
+      vakal_2_bhav: b2,
+      vakal_3_bhav: b3,
+      vakal_4_bhav: b4,
+      vakal_5_bhav: b5,
+      weighbridge_weight: weight,
+      bharela_600,
+      khali_600,
+      bharela_200,
+      khali_200,
+    } = data;
+
+    let bharela = bharela_600 + bharela_200,
+      khali = khali_600 + khali_200,
+      totalBardan = bharela + khali;
     let bardanWeightKantan = 0;
-    if (deductKantan) bardanWeightKantan = customRound((data.bharela_600 + data.khali_600) * 0.6);
+    if (deductKantan) bardanWeightKantan = customRound((bharela_600 + khali_600) * 0.6);
     let bardanWeightPlastic = 0;
-    if (deductPlastic) bardanWeightPlastic = customRound((data.bharela_200 + data.khali_200) * 0.2);
+    if (deductPlastic) bardanWeightPlastic = customRound((bharela_200 + khali_200) * 0.2);
 
     let Bardan = bardanWeightKantan + bardanWeightPlastic;
     let katta_kasar = customRound(weight * 0.003);
@@ -81,10 +118,9 @@ function collectData() {
     let katta =
       data.vakal_1_katta + data.vakal_2_katta + data.vakal_3_katta + data.vakal_4_katta + data.vakal_5_katta + khali;
     let perUnitWeight = bharela ? net_vajan / bharela : 0;
-
     const kiloValues = {};
-    let calculatedKilosSum = 0;
-    let lastActiveVakalIndex = -1;
+    let calculatedKilosSum = 0,
+      lastActiveVakalIndex = -1;
     for (let i = 5; i >= 1; i--)
       if (data[`vakal_${i}_katta`] > 0) {
         lastActiveVakalIndex = i;
@@ -93,22 +129,16 @@ function collectData() {
 
     for (let i = 1; i <= 5; i++) {
       if (data[`vakal_${i}_katta`] > 0) {
-        if (i === lastActiveVakalIndex) {
-          kiloValues[i] = net_vajan - calculatedKilosSum;
-        } else {
+        if (i === lastActiveVakalIndex) kiloValues[i] = net_vajan - calculatedKilosSum;
+        else {
           const calculatedKilo = customRound(perUnitWeight * data[`vakal_${i}_katta`]);
           kiloValues[i] = calculatedKilo;
           calculatedKilosSum += calculatedKilo;
         }
-      } else {
-        kiloValues[i] = 0;
-      }
+      } else kiloValues[i] = 0;
     }
-
     const amounts = {};
-    for (let i = 1; i <= 5; i++) {
-      amounts[i] = customRound((kiloValues[i] / 20) * data[`vakal_${i}_bhav`] || 0);
-    }
+    for (let i = 1; i <= 5; i++) amounts[i] = customRound((kiloValues[i] / 20) * data[`vakal_${i}_bhav`] || 0);
 
     total = amounts[1] + amounts[2] + amounts[3] + amounts[4] + amounts[5];
     let totalKilo = kiloValues[1] + kiloValues[2] + kiloValues[3] + kiloValues[4] + kiloValues[5];
@@ -146,7 +176,9 @@ function collectData() {
     else finalutrai = utrai_base + diff;
   }
 
-  const finaltotal = total - finalutrai;
+  const totalExpenses = data.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const finaltotal = total - finalutrai - totalExpenses;
+
   const now = new Date();
   data.date = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(
     2,
@@ -211,8 +243,20 @@ function displayData() {
     bardanValueElement.textContent = `${kantanWeight} + ${plasticWeight}`;
   }
 
+  // Display other expenses
+  const finalTotalBoxContainer = document.getElementById("final_total_box_container");
+  if (finalTotalBoxContainer && data.expenses && data.expenses.length > 0) {
+    data.expenses.forEach((exp) => {
+      const expenseBox = document.createElement("div");
+      expenseBox.classList.add("detail-item");
+      expenseBox.innerHTML = `<span class="detail-label">${exp.name}</span><span class="detail-value">${exp.amount}</span>`;
+      finalTotalBoxContainer.before(expenseBox);
+    });
+  }
+
   if (data.bill_type === "Loose") {
     document.getElementById("bardan_box").style.display = "none";
+    // document.getElementById("utrai_box").style.display = "none";  // remove because utrai box importent
     document.querySelectorAll(".optional-vakal").forEach((row) => (row.style.display = "none"));
     document.querySelector(".details-grid").style.gridTemplateColumns = "repeat(auto-fit, minmax(200px, 1fr))";
   }

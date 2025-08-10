@@ -167,7 +167,7 @@ input[type="date"]:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 15px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid #e9ecef;
 }
@@ -181,16 +181,25 @@ input[type="date"]:focus {
 }
 
 .detail-label {
-  font-size: 13px;
+  font-size: 19px;
   color: #6c757d;
-  margin-bottom: 4px;
+  margin: auto;
   display: block;
   font-weight: 500;
+  text-transform: capitalize;
+}
+.detail-label-enter {
+  font-size: 1.7em;
+  color: #6c757d;
+  margin: auto;
+  display: block;
+  font-weight: bold;
+  text-transform: capitalize;
 }
 
 .detail-value {
-  font-size: 2.5em;
-  font-weight: 700;
+  font-size: 2.7em;
+  font-weight: 500;
   color: #005a9e;
   line-height: 1.1;
 }
@@ -206,14 +215,14 @@ input[type="date"]:focus {
 /* --- Final Bill Items Table --- */
 .final-bill-table {
   text-align: center;
-  margin-top: 0;
 }
 
 .final-bill-table th {
   background-color: #f8f9fa;
   color: #005a9e;
   font-weight: 600;
-  padding: 6px 10px;
+  padding: 1px 10px;
+  margin: auto;
   border-bottom: 2px solid #dee2e6;
   font-size: 1.1em;
 }
@@ -232,29 +241,27 @@ input[type="date"]:focus {
   font-weight: bold;
 }
 
-.final-bill-table .aaaaa {
+.final-bill-table {
   font-weight: bold;
   font-size: 1.3em;
 }
 
-/* --- Box Layout for Totals --- */
+/* --- CORRECTED Box Layout for Totals --- */
 .totals-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  /* This makes it flexible, just like the top boxes */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 15px;
   margin-top: 20px;
 }
-
 .final-total-box {
   background: #005a9e;
   border-color: #004a82;
 }
-
 .final-total-box .detail-label,
 .final-total-box .detail-value {
   color: white;
 }
-
 .match-status {
   text-align: center;
   font-weight: bold;
@@ -262,9 +269,51 @@ input[type="date"]:focus {
   margin-top: 15px;
 }
 
+/* --- New Expense Section Styles --- */
+.expense-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #e9ecef;
+}
+.expense-section h3 {
+  color: #005a9e;
+  margin-bottom: 15px;
+}
+.expense-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.expense-row input[type="text"] {
+  flex: 2;
+}
+.expense-row input[type="number"] {
+  flex: 1;
+}
+.remove-expense-btn,
+.add-expense-btn {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+    "Helvetica Neue", sans-serif;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+.remove-expense-btn {
+  background-color: #dc3545;
+  color: white;
+}
+.add-expense-btn {
+  background-color: #28a745;
+  color: white;
+  margin-top: 10px;
+}
+
 /* --- Button Styles --- */
-button,
-.button-container .button {
+button[type="submit"] {
   display: block;
   width: 100%;
   padding: 15px;
@@ -292,6 +341,9 @@ button,
   text-decoration: none;
   font-size: 16px;
   padding: 12px;
+  background: #007bff;
+  border-radius: 8px;
+  color: white;
 }
 
 .button-container .back-button {
@@ -318,9 +370,6 @@ button,
   }
   .details-grid {
     grid-template-columns: 1fr 1fr;
-  }
-  .totals-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -376,26 +425,30 @@ button,
   .print-header {
     display: block;
     text-align: center;
-    margin-bottom: 5px;
-    padding-bottom: 5px;
+    margin-bottom: 1px;
+    padding-bottom: 1px;
     border-bottom: 1px solid #ccc;
-  }
-  .print-header h2 {
-    font-size: 14pt;
-    margin: 0;
-  }
-  .print-header p {
-    font-size: 10pt;
-    margin: 0;
+    font-size: 6pt;
   }
 
   .bill-date {
     position: absolute;
-    top: 25px;
-    right: 12px;
-    font-size: 25pt;
+    top: 10px;
+    right: 7.5%;
+    font-size: 20pt;
     font-weight: bold;
     margin: 0;
+  }
+
+  .bill-name {
+    font-size: 15pt;
+    font-weight: bold;
+    margin: auto;
+  }
+  .bill-num {
+    font-size: 10pt;
+    font-weight: bold;
+    margin: auto;
   }
 
   .print-only-details {
@@ -454,14 +507,13 @@ button,
     padding: 4px;
   }
 
-  /* --- Corrected Print Table Styles --- */
   .final-bill-table th {
-    padding: 0 10px; /* Removed vertical padding */
+    padding: 0 10px;
     font-size: 15pt;
   }
   .final-bill-table td {
-    padding: 1px 10px; /* Minimal vertical padding */
-    font-size: 20pt;
+    padding: 1px 10px;
+    font-size: 15pt;
   }
 }
 
@@ -469,7 +521,6 @@ button,
 .checkbox-cell {
   text-align: center;
 }
-
 .toggle-container {
   display: inline-flex;
   align-items: center;
@@ -477,25 +528,21 @@ button,
   font-size: 16px;
   font-weight: bold;
 }
-
 .toggle-cell-container {
   text-align: center;
   vertical-align: middle;
 }
-
 .switch {
   position: relative;
   display: inline-block;
   width: 60px;
   height: 34px;
 }
-
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
-
 .slider {
   position: absolute;
   cursor: pointer;
@@ -507,7 +554,6 @@ button,
   transition: 0.4s;
   border-radius: 34px;
 }
-
 .slider:before {
   position: absolute;
   content: "";
@@ -519,15 +565,12 @@ button,
   transition: 0.4s;
   border-radius: 50%;
 }
-
 input:checked + .slider {
-  background-color: #007bff; /* Blue color when ON */
+  background-color: #007bff;
 }
-
 input:focus + .slider {
   box-shadow: 0 0 1px #007bff;
 }
-
 input:checked + .slider:before {
   transform: translateX(26px);
 }
