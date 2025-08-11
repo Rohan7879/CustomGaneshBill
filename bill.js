@@ -1,8 +1,63 @@
-let expenseCount = 0;
+// --- FIREBASE SETUP ---
+// This should be your actual Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCjYTkXGs8_xVyi9ij7H5AS4Zk1oh1VxzU",
+  authDomain: "ganeshagribilling.firebaseapp.com",
+  projectId: "ganeshagribilling",
+  storageBucket: "ganeshagribilling.firebasestorage.app",
+  messagingSenderId: "99624726079",
+  appId: "1:99624726079:web:4c5aa1f7341ff40e8cd28a",
+  measurementId: "G-3XXY4BCZPL",
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const billsCollection = db.collection("bills");
+
+// Enable offline persistence
+db.enablePersistence().catch((err) => {
+  if (err.code == "failed-precondition") {
+    // Multiple tabs open, persistence can only be enabled in one.
+  } else if (err.code == "unimplemented") {
+    // The current browser does not support all of the features required to enable persistence
+  }
+});
+
+// --- GLOBAL SCRIPT LOGIC ---
+document.addEventListener("DOMContentLoaded", function () {
+  if (document.getElementById("estimateForm")) {
+    initializeIndexPage();
+  } else if (document.getElementById("container-original")) {
+    displayData();
+  }
+});
+
+// --- INDEX.HTML PAGE FUNCTIONS ---
+
+function initializeIndexPage() {
+  addExpense();
+  const toggle = document.getElementById("loose_supply_toggle");
+  if (toggle) {
+    toggle.addEventListener("change", function (event) {
+      const isLoose = event.target.checked;
+      document.getElementById("loose_supply_section").style.display = isLoose ? "table-row-group" : "none";
+      document.getElementById("bag_supply_section").style.display = isLoose ? "none" : "table-row-group";
+      document.getElementById("vakal_section").style.display = isLoose ? "none" : "table-row-group";
+      document.getElementById("loose_price_input").required = isLoose;
+    });
+  }
+  const form = document.getElementById("estimateForm");
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    collectData();
+  });
+}
 
 function addExpense() {
-  expenseCount++;
   const expenseList = document.getElementById("expense_list");
+  if (!expenseList) return;
+  const expenseCount = expenseList.children.length + 1;
   const newRow = document.createElement("div");
   newRow.classList.add("expense-row");
   newRow.innerHTML = `
@@ -13,158 +68,142 @@ function addExpense() {
   expenseList.appendChild(newRow);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  addExpense(); // Start with one empty expense row
-  const toggle = document.getElementById("loose_supply_toggle");
-  if (toggle) {
-    toggle.addEventListener("change", function (event) {
-      const isLoose = event.target.checked;
-      const looseSection = document.getElementById("loose_supply_section");
-      const bagSection = document.getElementById("bag_supply_section");
-      const vakalSection = document.getElementById("vakal_section");
-      const loosePriceInput = document.getElementById("loose_price_input");
-
-      looseSection.style.display = isLoose ? "table-row-group" : "none";
-      bagSection.style.display = isLoose ? "none" : "table-row-group";
-      vakalSection.style.display = isLoose ? "none" : "table-row-group";
-      loosePriceInput.required = isLoose;
-    });
-  }
-});
-
 function customRound(num) {
   let decimal = num - Math.floor(num);
   return decimal > 0.5 ? Math.ceil(num) : Math.floor(num);
 }
 
+// --- DATA HANDLING (FIREBASE) ---
+
 function collectData() {
   const form = document.getElementById("estimateForm");
   const formData = new FormData(form);
-
   let data = {};
+
+  // --- THIS IS THE OFFLINE FIX ---
+  let lastSerialNo = Number(localStorage.getItem("lastSerialNo")) || 0;
+  const newSerialNo = lastSerialNo + 1;
+  data["Serial No"] = newSerialNo;
+  localStorage.setItem("lastSerialNo", newSerialNo);
+  // --- END OFFLINE FIX ---
+
+  data["Customer Name"] = formData.get("customer_name");
+  data["Vehicle No"] = formData.get("vehicle_no");
+  data["Village"] = formData.get("village");
+  data["Broker"] = formData.get("broker");
+
   const isLooseSupply = formData.get("is_loose_supply") !== null;
   const deductKantan = formData.get("deduct_kantan") !== null;
   const deductPlastic = formData.get("deduct_plastic") !== null;
   const deductUtrai = formData.get("deduct_utrai") !== null;
 
-  data.expenses = [];
-  for (let i = 1; i <= expenseCount; i++) {
-    const name = formData.get(`expense_name_${i}`);
-    const amount = Number(formData.get(`expense_amount_${i}`)) || 0;
+  let expenses = [];
+  const expenseRows = document.querySelectorAll(".expense-row");
+  expenseRows.forEach((row) => {
+    const name = row.querySelector(`input[name^="expense_name"]`).value;
+    const amount = Number(row.querySelector(`input[name^="expense_amount"]`).value) || 0;
     if (name && amount > 0) {
-      data.expenses.push({ name, amount });
+      expenses.push({ name, amount });
     }
-  }
+  });
+  data["Expenses"] = JSON.stringify(expenses);
 
   let net_vajan = 0,
     total = 0,
     finalutrai = 0;
 
   if (isLooseSupply) {
-    data.bill_type = "Loose";
+    data["Bill Type"] = "Loose";
     const weight = Number(formData.get("weighbridge_weight")) || 0;
     const price = Number(formData.get("loose_price")) || 0;
     const katta_kasar = customRound(weight * 0.003);
     net_vajan = customRound(weight - katta_kasar);
     total = customRound((net_vajan / 20) * price);
-    Object.assign(data, {
-      is_match_valid: true,
-      weighbridge_weight: weight,
-      kasar: katta_kasar,
-      bardan_weight: 0,
-      bardan_weight_kantan: 0,
-      bardan_weight_plastic: 0,
-      total_bardan: 0,
-      vakal_1_katta: "-",
-      vakal_1_kilo: net_vajan,
-      vakal_1_bhav: price,
-      vakal_1_amount: total,
-    });
+
+    data["Weighbridge Weight"] = weight;
+    data["Kasar"] = katta_kasar;
+    data["Bardan Weight"] = 0;
+    data["Vakal 1 Katta"] = "-";
+    data["Vakal 1 Kilo"] = net_vajan;
+    data["Vakal 1 Bhav"] = price;
+    data["Vakal 1 Amount"] = total;
+    for (let i = 2; i <= 5; i++) {
+      data[`Vakal ${i} Katta`] = 0;
+      data[`Vakal ${i} Kilo`] = 0;
+      data[`Vakal ${i} Bhav`] = 0;
+      data[`Vakal ${i} Amount`] = 0;
+    }
   } else {
-    data.bill_type = "Bag";
+    data["Bill Type"] = "Bag";
+    let formValues = {};
     formData.forEach((value, key) => {
-      if (
-        !key.startsWith("expense_") &&
-        !["is_loose_supply", "deduct_kantan", "deduct_plastic", "deduct_utrai"].includes(key)
-      ) {
-        data[key] = Number(value) || 0;
-      }
+      formValues[key] = value;
     });
 
     let {
-      vakal_1_bhav: b1,
-      vakal_2_bhav: b2,
-      vakal_3_bhav: b3,
-      vakal_4_bhav: b4,
-      vakal_5_bhav: b5,
-      weighbridge_weight: weight,
+      weighbridge_weight,
       bharela_600,
       khali_600,
       bharela_200,
       khali_200,
-    } = data;
+      vakal_1_katta,
+      vakal_1_bhav,
+      vakal_2_katta,
+      vakal_2_bhav,
+      vakal_3_katta,
+      vakal_3_bhav,
+      vakal_4_katta,
+      vakal_4_bhav,
+      vakal_5_katta,
+      vakal_5_bhav,
+    } = formValues;
 
-    let bharela = bharela_600 + bharela_200,
-      khali = khali_600 + khali_200,
-      totalBardan = bharela + khali;
-    let bardanWeightKantan = 0;
-    if (deductKantan) bardanWeightKantan = customRound((bharela_600 + khali_600) * 0.6);
-    let bardanWeightPlastic = 0;
-    if (deductPlastic) bardanWeightPlastic = customRound((bharela_200 + khali_200) * 0.2);
+    weighbridge_weight = Number(weighbridge_weight) || 0;
+    bharela_600 = Number(bharela_600) || 0;
+    khali_600 = Number(khali_600) || 0;
+    bharela_200 = Number(bharela_200) || 0;
+    khali_200 = Number(khali_200) || 0;
 
+    let bharela = bharela_600 + bharela_200;
+    let bardanWeightKantan = deductKantan ? customRound((bharela_600 + khali_600) * 0.6) : 0;
+    let bardanWeightPlastic = deductPlastic ? customRound((bharela_200 + khali_200) * 0.2) : 0;
     let Bardan = bardanWeightKantan + bardanWeightPlastic;
-    let katta_kasar = customRound(weight * 0.003);
-    net_vajan = customRound(weight - katta_kasar - Bardan);
-    let katta =
-      data.vakal_1_katta + data.vakal_2_katta + data.vakal_3_katta + data.vakal_4_katta + data.vakal_5_katta + khali;
+    let katta_kasar = customRound(weighbridge_weight * 0.003);
+    net_vajan = customRound(weighbridge_weight - katta_kasar - Bardan);
+
+    data["Weighbridge Weight"] = weighbridge_weight;
+    data["Kasar"] = katta_kasar;
+    data["Bardan Weight"] = Bardan;
+
+    const vakals = [
+      { katta: Number(vakal_1_katta) || 0, bhav: Number(vakal_1_bhav) || 0 },
+      { katta: Number(vakal_2_katta) || 0, bhav: Number(vakal_2_bhav) || 0 },
+      { katta: Number(vakal_3_katta) || 0, bhav: Number(vakal_3_bhav) || 0 },
+      { katta: Number(vakal_4_katta) || 0, bhav: Number(vakal_4_bhav) || 0 },
+      { katta: Number(vakal_5_katta) || 0, bhav: Number(vakal_5_bhav) || 0 },
+    ];
+
     let perUnitWeight = bharela ? net_vajan / bharela : 0;
-    const kiloValues = {};
-    let calculatedKilosSum = 0,
-      lastActiveVakalIndex = -1;
-    for (let i = 5; i >= 1; i--)
-      if (data[`vakal_${i}_katta`] > 0) {
-        lastActiveVakalIndex = i;
-        break;
-      }
+    let calculatedKilosSum = 0;
+    let lastActiveVakalIndex = vakals.map((v) => v.katta > 0).lastIndexOf(true);
 
-    for (let i = 1; i <= 5; i++) {
-      if (data[`vakal_${i}_katta`] > 0) {
-        if (i === lastActiveVakalIndex) kiloValues[i] = net_vajan - calculatedKilosSum;
-        else {
-          const calculatedKilo = customRound(perUnitWeight * data[`vakal_${i}_katta`]);
-          kiloValues[i] = calculatedKilo;
-          calculatedKilosSum += calculatedKilo;
+    for (let i = 0; i < vakals.length; i++) {
+      let kilo = 0;
+      if (vakals[i].katta > 0) {
+        if (i === lastActiveVakalIndex) {
+          kilo = net_vajan - calculatedKilosSum;
+        } else {
+          kilo = customRound(perUnitWeight * vakals[i].katta);
+          calculatedKilosSum += kilo;
         }
-      } else kiloValues[i] = 0;
+      }
+      data[`Vakal ${i + 1} Katta`] = vakals[i].katta;
+      data[`Vakal ${i + 1} Kilo`] = kilo;
+      data[`Vakal ${i + 1} Bhav`] = vakals[i].bhav;
+      const amount = customRound((kilo / 20) * vakals[i].bhav);
+      data[`Vakal ${i + 1} Amount`] = amount;
+      total += amount;
     }
-    const amounts = {};
-    for (let i = 1; i <= 5; i++) amounts[i] = customRound((kiloValues[i] / 20) * data[`vakal_${i}_bhav`] || 0);
-
-    total = amounts[1] + amounts[2] + amounts[3] + amounts[4] + amounts[5];
-    let totalKilo = kiloValues[1] + kiloValues[2] + kiloValues[3] + kiloValues[4] + kiloValues[5];
-    let weightMatch = totalKilo === net_vajan,
-      kattaMatch = totalBardan === katta,
-      isMatchValid = weightMatch && kattaMatch;
-
-    Object.assign(data, {
-      is_match_valid: isMatchValid,
-      total_bardan: totalBardan,
-      kasar: katta_kasar,
-      bardan_weight: Bardan,
-      bardan_weight_kantan: bardanWeightKantan,
-      bardan_weight_plastic: bardanWeightPlastic,
-      vakal_1_kilo: kiloValues[1],
-      vakal_2_kilo: kiloValues[2],
-      vakal_3_kilo: kiloValues[3],
-      vakal_4_kilo: kiloValues[4],
-      vakal_5_kilo: kiloValues[5],
-      vakal_1_amount: amounts[1],
-      vakal_2_amount: amounts[2],
-      vakal_3_amount: amounts[3],
-      vakal_4_amount: amounts[4],
-      vakal_5_amount: amounts[5],
-      match_message: isMatchValid ? `✅ મેળ ખાય છે` : `❌ મેળ ખાતો નથી!`,
-    });
   }
 
   if (deductUtrai) {
@@ -176,107 +215,264 @@ function collectData() {
     else finalutrai = utrai_base + diff;
   }
 
-  const totalExpenses = data.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const finaltotal = total - finalutrai - totalExpenses;
 
   const now = new Date();
-  data.date = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(
+  data["Date"] = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(
     2,
     "0"
   )}/${now.getFullYear()}`;
-  data.net_weight = net_vajan;
-  data.total_amount = total;
-  data.utrai = finalutrai;
-  data.final_total = finaltotal;
+  data["Net Weight"] = net_vajan;
+  data["Total Amount"] = total;
+  data["Utrāī"] = finalutrai;
+  data["Final Total"] = finaltotal;
 
-  localStorage.setItem("estimateData", JSON.stringify(data));
-  window.location.href = "final.html";
+  try {
+    // Add the new bill to Firestore. This works offline!
+    billsCollection.add(data);
+    // Save temporarily to show on final.html
+    localStorage.setItem("currentBill", JSON.stringify(data));
+    window.location.href = "final.html";
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    alert("Could not save the bill. Please try again.");
+  }
 }
 
+// --- UI TOGGLING AND RENDERING ---
+
+function showBillListView() {
+  document.getElementById("bill_creation_form").style.display = "none";
+  document.getElementById("view_all_bills_btn").style.display = "none";
+  document.getElementById("bill_list_view").style.display = "block";
+
+  // Listen for real-time updates
+  billsCollection.orderBy("Serial No", "desc").onSnapshot((snapshot) => {
+    const syncStatus = document.getElementById("sync_status");
+    if (snapshot.metadata.hasPendingWrites) {
+      syncStatus.textContent = "Offline. Changes will sync when online.";
+      syncStatus.style.color = "orange";
+    } else {
+      syncStatus.textContent = "All data synced.";
+      syncStatus.style.color = "green";
+    }
+
+    const serverBills = snapshot.docs.map((doc) => doc.data());
+    const lastServerNo = serverBills.reduce((max, bill) => Math.max(max, bill["Serial No"]), 0);
+    if (lastServerNo > 0) {
+      localStorage.setItem("lastSerialNo", lastServerNo);
+    }
+
+    renderBillList(snapshot.docs);
+  });
+}
+
+function showBillCreationForm() {
+  document.getElementById("bill_list_view").style.display = "none";
+  document.getElementById("bill_creation_form").style.display = "block";
+  document.getElementById("view_all_bills_btn").style.display = "block";
+}
+
+function renderBillList(docs) {
+  const tableBody = document.getElementById("bill_list_body");
+  tableBody.innerHTML = "";
+  if (docs.length === 0) {
+    tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No bills saved yet.</td></tr>';
+    return;
+  }
+
+  docs.forEach((doc) => {
+    const bill = doc.data();
+    const row = document.createElement("tr");
+    row.innerHTML = `
+            <td><input type="checkbox" class="bill-checkbox" value="${doc.id}"></td>
+            <td>${bill["Serial No"]}</td>
+            <td>${bill["Date"]}</td>
+            <td>${bill["Customer Name"]}</td>
+            <td>${bill["Bill Type"]}</td>
+            <td>${formatNumber(bill["Final Total"])}</td>
+            <td class="action-buttons">
+                <button class="view-btn" onclick="viewBill('${doc.id}')">View</button>
+                <button class="delete-btn" onclick="deleteBill('${doc.id}', ${bill["Serial No"]})">Delete</button>
+            </td>
+        `;
+    tableBody.appendChild(row);
+  });
+}
+
+function viewBill(docId) {
+  billsCollection
+    .doc(docId)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        localStorage.setItem("currentBill", JSON.stringify({ ...doc.data(), id: doc.id }));
+        window.location.href = "final.html";
+      } else {
+        alert("Could not find this bill. It might not be synced yet.");
+      }
+    });
+}
+
+function deleteBill(docId, serialNo) {
+  if (confirm(`Are you sure you want to delete Bill No. ${serialNo}? This cannot be undone.`)) {
+    billsCollection
+      .doc(docId)
+      .delete()
+      .catch((error) => {
+        console.error("Error removing document: ", error);
+        alert("Could not delete the bill. Please try again when online.");
+      });
+  }
+}
+
+// --- EXPORT FUNCTIONS ---
+
+function toggleSelectAll(source) {
+  const checkboxes = document.querySelectorAll(".bill-checkbox");
+  for (let i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = source.checked;
+  }
+}
+
+async function exportSelectedBills() {
+  const format = document.getElementById("export_format").value;
+  const selectedCheckboxes = document.querySelectorAll(".bill-checkbox:checked");
+
+  if (selectedCheckboxes.length === 0) {
+    alert("Please select at least one bill to download.");
+    return;
+  }
+
+  const selectedIds = Array.from(selectedCheckboxes).map((cb) => cb.value);
+
+  // Fetch full data for selected bills
+  const billPromises = selectedIds.map((id) => billsCollection.doc(id).get());
+  const billDocs = await Promise.all(billPromises);
+  const billsData = billDocs.map((doc) => doc.data());
+
+  if (format === "excel") {
+    downloadAsExcel(billsData);
+  } else if (format === "pdf") {
+    downloadAsPDF(billsData);
+  }
+}
+
+function downloadAsExcel(billsData) {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(billsData);
+  XLSX.utils.book_append_sheet(wb, ws, "Bills");
+  XLSX.writeFile(wb, "GaneshAgri_Bills.xlsx");
+}
+
+function downloadAsPDF(billsData) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const tableColumns = ["Bill No.", "Date", "Customer Name", "Bill Type", "Final Total"];
+  const tableRows = [];
+
+  billsData.forEach((bill) => {
+    const billData = [
+      bill["Serial No"],
+      bill["Date"],
+      bill["Customer Name"],
+      bill["Bill Type"],
+      formatNumber(bill["Final Total"]),
+    ];
+    tableRows.push(billData);
+  });
+
+  doc.autoTable({
+    head: [tableColumns],
+    body: tableRows,
+    startY: 20,
+  });
+
+  doc.text("Ganesh Agri Industries - Bill Report", 14, 15);
+  doc.save("GaneshAgri_Bills.pdf");
+}
+
+// --- FINAL.HTML PAGE FUNCTIONS ---
+
 function displayData() {
-  let storedData = localStorage.getItem("estimateData");
+  let storedData = localStorage.getItem("currentBill");
   if (!storedData) return;
   let data = JSON.parse(storedData);
 
   function setValue(id, value) {
     let element = document.getElementById(id);
     if (element) {
-      // Format the value before displaying it
       element.innerHTML = formatNumber(value);
     }
   }
 
-  const fieldMapping = {
-    display_date: "date",
-    display_weighbridge_weight: "weighbridge_weight",
-    display_kasar: "kasar",
-    display_net_weight: "net_weight",
-    display_vakal_1_katta: "vakal_1_katta",
-    display_vakal_1_kilo: "vakal_1_kilo",
-    display_vakal_1_bhav: "vakal_1_bhav",
-    display_vakal_1_amount: "vakal_1_amount",
-    display_vakal_2_katta: "vakal_2_katta",
-    display_vakal_2_kilo: "vakal_2_kilo",
-    display_vakal_2_bhav: "vakal_2_bhav",
-    display_vakal_2_amount: "vakal_2_amount",
-    display_vakal_3_katta: "vakal_3_katta",
-    display_vakal_3_kilo: "vakal_3_kilo",
-    display_vakal_3_bhav: "vakal_3_bhav",
-    display_vakal_3_amount: "vakal_3_amount",
-    display_vakal_4_katta: "vakal_4_katta",
-    display_vakal_4_kilo: "vakal_4_kilo",
-    display_vakal_4_bhav: "vakal_4_bhav",
-    display_vakal_4_amount: "vakal_4_amount",
-    display_vakal_5_katta: "vakal_5_katta",
-    display_vakal_5_kilo: "vakal_5_kilo",
-    display_vakal_5_bhav: "vakal_5_bhav",
-    display_vakal_5_amount: "vakal_5_amount",
-    display_total_amount: "total_amount",
-    display_utrai: "utrai",
-    display_final_total: "final_total",
-    display_match_message: "match_message",
-  };
+  const serialNoElement = document.getElementById("display_serial_no");
+  if (serialNoElement) {
+    serialNoElement.textContent = data["Serial No"];
+  }
 
+  const customerDetailsMapping = {
+    display_customer_name: data["Customer Name"],
+    display_vehicle_no: data["Vehicle No"],
+    display_village: data["Village"],
+    display_broker: data["Broker"],
+  };
+  Object.entries(customerDetailsMapping).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  });
+
+  const fieldMapping = {
+    display_date: "Date",
+    display_weighbridge_weight: "Weighbridge Weight",
+    display_kasar: "Kasar",
+    display_net_weight: "Net Weight",
+    display_total_amount: "Total Amount",
+    display_utrai: "Utrāī",
+    display_final_total: "Final Total",
+  };
   Object.entries(fieldMapping).forEach(([id, key]) => setValue(id, data[key] !== undefined ? data[key] : ""));
+
+  for (let i = 1; i <= 5; i++) {
+    setValue(`display_vakal_${i}_katta`, data[`Vakal ${i} Katta`]);
+    setValue(`display_vakal_${i}_kilo`, data[`Vakal ${i} Kilo`]);
+    setValue(`display_vakal_${i}_bhav`, data[`Vakal ${i} Bhav`]);
+    setValue(`display_vakal_${i}_amount`, data[`Vakal ${i} Amount`]);
+  }
 
   const bardanValueElement = document.getElementById("display_bardan_weight");
   if (bardanValueElement) {
-    const kantanWeight = data.bardan_weight_kantan || 0,
-      plasticWeight = data.bardan_weight_plastic || 0;
-    bardanValueElement.textContent = `${kantanWeight} + ${plasticWeight}`;
+    bardanValueElement.textContent = data["Bardan Weight"];
   }
 
-  // Display other expenses
   const finalTotalBoxContainer = document.getElementById("final_total_box_container");
-  if (finalTotalBoxContainer && data.expenses && data.expenses.length > 0) {
-    data.expenses.forEach((exp) => {
-      const expenseBox = document.createElement("div");
-      expenseBox.classList.add("detail-item");
-      expenseBox.innerHTML = `<span class="detail-label">${exp.name}</span><span class="detail-value">${exp.amount}</span>`;
-      finalTotalBoxContainer.before(expenseBox);
-    });
+  if (finalTotalBoxContainer && data["Expenses"]) {
+    let expenses = JSON.parse(data["Expenses"]);
+    if (expenses.length > 0) {
+      expenses.forEach((exp) => {
+        const expenseBox = document.createElement("div");
+        expenseBox.classList.add("detail-item");
+        expenseBox.innerHTML = `<span class="detail-label">${exp.name}</span><span class="detail-value">${exp.amount}</span>`;
+        finalTotalBoxContainer.before(expenseBox);
+      });
+    }
   }
 
-  if (data.bill_type === "Loose") {
+  if (data["Bill Type"] === "Loose") {
     document.getElementById("bardan_box").style.display = "none";
-    // document.getElementById("utrai_box").style.display = "none";  // remove because utrai box importent
     document.querySelectorAll(".optional-vakal").forEach((row) => (row.style.display = "none"));
-    document.querySelector(".details-grid").style.gridTemplateColumns = "repeat(auto-fit, minmax(200px, 1fr))";
-  }
-
-  if (data.bill_type === "Bag") {
+  } else {
     for (let i = 1; i <= 5; i++) {
-      const kattaValue = data[`vakal_${i}_katta`] || 0;
-      const bhavValue = data[`vakal_${i}_bhav`] || 0;
+      const kattaValue = data[`Vakal ${i} Katta`] || 0;
+      const bhavValue = data[`Vakal ${i} Bhav`] || 0;
       const vakalRow = document.getElementById(`vakal_row_${i}`);
       if (vakalRow && kattaValue === 0 && bhavValue === 0) {
         vakalRow.style.display = "none";
       }
     }
   }
-
-  const printButton = document.getElementById("printButton");
-  if (printButton) printButton.disabled = !data.is_match_valid;
 
   const originalContainer = document.getElementById("container-original"),
     copyContainer = document.getElementById("container-copy");
@@ -287,15 +483,52 @@ function displayData() {
   }
 }
 
-if (window.location.pathname.includes("final.html")) {
-  window.onload = displayData;
+// --- NEW: Download single bill as PDF ---
+function downloadBillAsPDF() {
+  const billContainer = document.getElementById("container-original");
+  const billData = JSON.parse(localStorage.getItem("currentBill"));
+  const billNo = billData["Serial No"];
+
+  // Temporarily hide buttons for the screenshot
+  const buttonContainer = billContainer.querySelector(".button-container");
+  buttonContainer.style.display = "none";
+
+  html2canvas(billContainer).then((canvas) => {
+    const imgData = canvas.toDataURL("image/png");
+    const { jsPDF } = window.jspdf;
+
+    // A4 page is 210mm wide by 297mm tall
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const canvasAspectRatio = canvasWidth / canvasHeight;
+
+    let finalWidth = pdfWidth;
+    let finalHeight = pdfWidth / canvasAspectRatio;
+
+    // If the calculated height is too big for the page, scale by height instead
+    if (finalHeight > pdfHeight) {
+      finalHeight = pdfHeight;
+      finalWidth = pdfHeight * canvasAspectRatio;
+    }
+
+    const x = (pdfWidth - finalWidth) / 2;
+    const y = (pdfHeight - finalHeight) / 2;
+
+    pdf.addImage(imgData, "PNG", x, y, finalWidth, finalHeight);
+    pdf.save(`Bill-No-${billNo}.pdf`);
+
+    // Show the buttons again
+    buttonContainer.style.display = "flex";
+  });
 }
-// --- NEW: Function to format numbers in the Indian system ---
+
 function formatNumber(num) {
-  // Return non-numeric values (like '-', 'N/A', etc.) as they are
-  if (isNaN(num)) {
+  if (isNaN(num) || num === "") {
     return num;
   }
-  // Use toLocaleString to format with commas for India (en-IN)
   return Number(num).toLocaleString("en-IN");
 }

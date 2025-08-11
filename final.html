@@ -4,8 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Final Bill</title>
+
+    <!-- Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Libraries for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <script src="bill.js"></script>
     <link rel="stylesheet" href="html.css" />
+    <style>
+      /* Added simple style for bill number and date layout */
+      .bill-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+      }
+      .meta-item {
+        font-size: 1.2em;
+        font-weight: bold;
+      }
+      .meta-label {
+        color: #6c757d;
+      }
+      .meta-value {
+        color: #343a40;
+      }
+    </style>
   </head>
   <body>
     <div class="container" id="container-original">
@@ -17,22 +47,32 @@
         <img src="IMG-20250716-WA0121.jpg" alt="Company Logo" class="logo" />
         <h1>Final Bill</h1>
       </div>
-      <div class="bill-date" id="display_date"></div>
+
+      <div class="bill-meta">
+        <div class="meta-item">
+          <span class="meta-label">Bill No:</span>
+          <span class="meta-value" id="display_serial_no"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Date:</span>
+          <span class="meta-value" id="display_date"></span>
+        </div>
+      </div>
 
       <div class="print-only-details">
         <div class="detail-line">
           <span class="detail-label-enter">નામ :</span>
-          <span class="detail-value-line"></span>
+          <span class="detail-value-line" id="display_customer_name"></span>
           <span class="detail-label-enter">ગાડી નં :</span>
-          <span class="detail-value-line"></span>
+          <span class="detail-value-line" id="display_vehicle_no"></span>
         </div>
       </div>
       <div class="print-only-details">
         <div class="detail-line">
           <span class="detail-label-enter">ગામ :</span>
-          <span class="detail-value-line"></span>
+          <span class="detail-value-line" id="display_village"></span>
           <span class="detail-label-enter">દલાલ :</span>
-          <span class="detail-value-line"></span>
+          <span class="detail-value-line" id="display_broker"></span>
         </div>
       </div>
 
@@ -127,6 +167,7 @@
 
       <div class="button-container">
         <a href="index.html" class="button back-button">Go Back & Edit</a>
+        <button onclick="downloadBillAsPDF()" class="button" style="background-color: #dc3545">Download PDF</button>
         <button onclick="window.print()" class="button" id="printButton">Print Bill</button>
       </div>
     </div>
