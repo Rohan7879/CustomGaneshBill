@@ -101,7 +101,7 @@ h1 {
 .bill-date {
   text-align: right;
   font-size: 1.4em;
-  font-weight: 700;
+  font-weight: bolder;
   color: #343a40;
   margin-bottom: 20px;
 }
@@ -436,7 +436,7 @@ button[type="submit"] {
     top: 10px;
     right: 7.5%;
     font-size: 20pt;
-    font-weight: bold;
+    font-weight: bolder;
     margin: 0;
   }
 
