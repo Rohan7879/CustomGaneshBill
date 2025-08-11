@@ -1,3 +1,2 @@
-# GaneshBillStoreDataFirebse
-# GaneshBillStoreDataFirebse
+# FirebaseGanesh
 # FirebaseGanesh
